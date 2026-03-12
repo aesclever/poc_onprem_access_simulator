@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>poc-infra Smoke Test</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* topbar */
+.topbar{background:#161b22;border-bottom:1px solid #30363d;padding:0;display:flex;align-items:stretch;flex-shrink:0}
+.tab{display:flex;align-items:center;gap:7px;padding:10px 18px;cursor:pointer;font-size:.82rem;color:#8b949e;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab:hover{color:#c9d1d9;background:#ffffff06}
+.tab.active{color:#c9d1d9;border-bottom-color:#58a6ff;background:#388bfd0a}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.d-g{background:#3fb950}.d-b{background:#58a6ff}.d-p{background:#d2a8ff}.d-o{background:#ffa657}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;padding:0 16px;font-size:.75rem;color:#8b949e}
+.pill{display:flex;align-items:center;gap:5px;background:#3fb95018;border:1px solid #3fb95040;border-radius:10px;padding:2px 10px;color:#3fb950;font-size:.7rem;font-weight:600}
+.blink{width:6px;height:6px;border-radius:50%;background:#3fb950;animation:bl 1.4s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* layout */
+.workspace{display:flex;flex:1;overflow:hidden}
+
+/* sidebar */
+.sidebar{width:230px;flex-shrink:0;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+.sb-title{padding:12px 14px 6px;font-size:.65rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:.9px}
+.sb-list{flex:1;overflow-y:auto;padding:4px 8px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .12s;margin-bottom:2px;border-left:2px solid transparent}
+.sb-item:hover{background:#ffffff0a}
+.sb-item.active{background:#388bfd15;border-left-color:#58a6ff}
+.sb-icon{width:30px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.ic-ssh{background:#3fb95020}.ic-svc{background:#ffa65720}.ic-wg{background:#d2a8ff20}
+.sb-meta{overflow:hidden;flex:1}
+.sb-name{font-size:.8rem;font-weight:600;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-sub{font-size:.7rem;color:#8b949e;font-family:'Consolas',monospace}
+.sb-tag{font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:7px;flex-shrink:0}
+.tag-ssh{background:#3fb95025;color:#3fb950}
+.tag-svc{background:#ffa65725;color:#ffa657}
+.tag-wg{background:#d2a8ff25;color:#d2a8ff}
+
+.divider{height:1px;background:#30363d;margin:6px 8px}
+.sb-info{margin:4px 8px 8px;padding:10px 11px;background:#0d1117;border-radius:6px;border:1px solid #30363d}
+.si-row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:.73rem}
+.si-row:last-child{margin-bottom:0}
+.si-label{color:#8b949e}
+.si-val{font-family:'Consolas',monospace;font-size:.7rem;color:#c9d1d9}
+.si-val.g{color:#3fb950}.si-val.b{color:#58a6ff}.si-val.p{color:#d2a8ff}.si-val.o{color:#ffa657}
+
+/* main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.sess-bar{background:#161b22;border-bottom:1px solid #30363d;padding:7px 14px;display:flex;align-items:center;gap:9px;flex-shrink:0}
+.wb{width:12px;height:12px;border-radius:50%;cursor:pointer}
+.wb-r{background:#f85149}.wb-y{background:#d29922}.wb-g{background:#3fb950}
+.sess-title{font-size:.8rem;color:#8b949e;margin-left:4px;font-family:'Consolas',monospace;flex:1}
+.btn{padding:4px 11px;border-radius:4px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;font-size:.75rem;cursor:pointer;transition:all .12s}
+.btn:hover{border-color:#58a6ff;color:#58a6ff;background:#388bfd12}
+.btn-g{background:#238636;border-color:#2ea043;color:#fff}
+.btn-g:hover{background:#2ea043;border-color:#3fb950;color:#fff}
+.btn-r{background:#6e1a1a;border-color:#f85149;color:#f87171}
+.btn-r:hover{background:#7e2020;border-color:#f85149}
+.btn-row{display:flex;gap:6px}
+
+/* terminal */
+.term{flex:1;background:#0d1117;overflow-y:auto;padding:14px 18px;font-family:'Consolas','Monaco',monospace;font-size:.8rem;line-height:1.65;display:flex;flex-direction:column}
+.tl{white-space:pre-wrap;word-break:break-all}
+.tp{color:#3fb950}.tc{color:#c9d1d9}.to{color:#8b949e}.ti{color:#58a6ff}
+.tw{color:#d29922}.te{color:#f85149}.ts{color:#3fb950}.tb{color:#d2a8ff}.td{color:#ffa657}
+.input-row{display:flex;align-items:center;margin-top:2px}
+.t-inp{background:none;border:none;outline:none;color:#c9d1d9;font-family:'Consolas',monospace;font-size:.8rem;flex:1;caret-color:#3fb950}
+.cur{display:inline-block;width:8px;height:14px;background:#3fb950;animation:cr 1s infinite;vertical-align:middle}
+@keyframes cr{0%,49%{opacity:1}50%,100%{opacity:0}}
+
+/* test runner */
+.test-pane{flex:1;background:#0d1117;overflow-y:auto;padding:16px 20px}
+.test-card{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:12px;overflow:hidden}
+.test-header{padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.test-header:hover{background:#ffffff06}
+.th-icon{font-size:1rem;width:24px;text-align:center}
+.th-name{font-size:.82rem;font-weight:600;color:#c9d1d9;flex:1}
+.th-status{font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:8px;min-width:70px;text-align:center}
+.st-pending {background:#30363d;color:#8b949e}
+.st-running {background:#d2992220;color:#d29922;border:1px solid #d2992250;animation:pulse .8s infinite}
+.st-pass    {background:#3fb95020;color:#3fb950;border:1px solid #3fb95050}
+.st-fail    {background:#f8514920;color:#f85149;border:1px solid #f8514950}
+.st-skip    {background:#58a6ff20;color:#58a6ff;border:1px solid #58a6ff50}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.test-body{border-top:1px solid #30363d;padding:10px 14px;background:#0d1117;font-family:'Consolas',monospace;font-size:.76rem;line-height:1.7;display:none}
+.test-body.open{display:block}
+.tl-pass{color:#3fb950}.tl-fail{color:#f85149}.tl-info{color:#58a6ff}
+.tl-warn{color:#d29922}.tl-cmd{color:#ffa657}.tl-out{color:#8b949e}
+
+.summary-bar{background:#161b22;border-top:1px solid #30363d;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;font-size:.78rem}
+.sum-item{display:flex;align-items:center;gap:5px}
+.prog-bar{flex:1;height:6px;background:#30363d;border-radius:3px;overflow:hidden;max-width:200px}
+.prog-fill{height:100%;background:#3fb950;border-radius:3px;transition:width .3s}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tab active" id="tab-ssh"  onclick="switchTab('ssh')"><div class="dot d-g"></div>SSH Terminal</div>
+  <div class="tab"        id="tab-test" onclick="switchTab('test')"><div class="dot d-o"></div>Smoke Tests</div>
+  <div class="tab"        id="tab-wg"   onclick="switchTab('wg')"><div class="dot d-p"></div>WireGuard</div>
+  <div class="topbar-right">
+    <div class="pill"><div class="blink"></div>Ubuntu 24.04 Host</div>
+    <span id="clock-top" style="font-family:'Consolas',monospace"></span>
+  </div>
+</div>
+
+<div class="workspace">
+  <!-- sidebar -->
+  <div class="sidebar">
+    <div class="sb-title">Targets</div>
+    <div class="sb-list" id="sb-list"></div>
+    <div class="divider"></div>
+    <div class="sb-title">Connection Info</div>
+    <div class="sb-info">
+      <div class="si-row"><span class="si-label">Target</span><span class="si-val b" id="ci-target">—</span></div>
+      <div class="si-row"><span class="si-label">Protocol</span><span class="si-val" id="ci-proto">—</span></div>
+      <div class="si-row"><span class="si-label">Auth</span><span class="si-val g" id="ci-auth">—</span></div>
+      <div class="si-row"><span class="si-label">Tunnel</span><span class="si-val p" id="ci-tunnel">—</span></div>
+      <div class="si-row"><span class="si-label">Vault TTL</span><span class="si-val o" id="ci-ttl">—</span></div>
+    </div>
+    <div class="sb-title" style="margin-top:4px">Test Summary</div>
+    <div class="sb-info">
+      <div class="si-row"><span class="si-label">Pass</span><span class="si-val g" id="sum-pass">0</span></div>
+      <div class="si-row"><span class="si-label">Fail</span><span class="si-val" style="color:#f85149" id="sum-fail">0</span></div>
+      <div class="si-row"><span class="si-label">Pending</span><span class="si-val" id="sum-pend">0</span></div>
+      <div class="si-row"><span class="si-label">Total</span><span class="si-val" id="sum-total">0</span></div>
+    </div>
+  </div>
+
+  <!-- SSH pane -->
+  <div class="main" id="pane-ssh">
+    <div class="sess-bar">
+      <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+      <span class="sess-title" id="ssh-title">Select a target →</span>
+      <div class="btn-row">
+        <button class="btn" onclick="clearTerm()">Clear</button>
+        <button class="btn" onclick="reconnectSSH()">↻ Reconnect</button>
+      </div>
+    </div>
+    <div class="term" id="term" onclick="focusIn()">
+      <div id="out"></div>
+      <div class="input-row" id="inp-row" style="display:none">
+        <span class="tp" id="prompt">$ </span>
+        <input class="t-inp" id="cmd" autocomplete="off" spellcheck="false" onkeydown="onKey(event)"/>
+        <span class="cur"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Smoke test pane -->
+  <div class="main" id="pane-test" style="display:none">
+    <div class="sess-bar">
+      <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+      <span class="sess-title">Smoke Test Suite — poc-infra on Ubuntu 24.04</span>
+      <div class="btn-row">
+        <button class="btn btn-g" onclick="runAllTests()">▶ Run All</button>
+        <button class="btn" onclick="resetTests()">↺ Reset</button>
+      </div>
+    </div>
+    <div class="test-pane" id="test-pane"></div>
+    <div class="summary-bar">
+      <span class="sum-item"><span style="color:#3fb950">●</span><span id="sb-pass">0 passed</span></span>
+      <span class="sum-item"><span style="color:#f85149">●</span><span id="sb-fail">0 failed</span></span>
+      <span class="sum-item"><span style="color:#8b949e">●</span><span id="sb-pend">0 pending</span></span>
+      <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+      <span style="color:#8b949e;font-size:.75rem" id="sb-time"></span>
+    </div>
+  </div>
+
+  <!-- WireGuard pane -->
+  <div class="main" id="pane-wg" style="display:none">
+    <div class="sess-bar">
+      <div class="wb wb-r"></div><div class="wb wb-y"></div><div class="wb wb-g"></div>
+      <span class="sess-title">WireGuard — wg0  (10.100.0.1/24)</span>
+      <div class="btn-row"><button class="btn" onclick="renderWG()">↻ Refresh</button></div>
+    </div>
+    <div class="term" id="wg-term"></div>
+  </div>
+</div>
+
+<script>
+// ── Spec: sourced from poc_generator.html ─────────────────
+var SPEC = {
+  host_ip:     "127.0.0.1",       // Ubuntu 24.04 host
+  wg_gateway:  "10.100.0.1",
+  vm_name:     "poc-vm-001",
+  vm_wg_ip:    "10.100.0.10",
+  vm_user:     "svc",
+  vault_addr:  "http://localhost:8200",
+  vault_token: "root",
+  keycloak:    "http://localhost:8080",
+  opa:         "http://localhost:8181",
+  ssh_port:    22,
+  wg_port:     51820
+};
+
+// ── Sidebar targets ───────────────────────────────────────
+var TARGETS = [
+  { id:"vm001",    name:"poc-vm-001",       addr:SPEC.vm_wg_ip,    user:SPEC.vm_user, proto:"ssh", icon:"💻", tag:"tag-ssh", ic:"ic-ssh", sub:"WireGuard VM" },
+  { id:"host",     name:"ubuntu-host",      addr:SPEC.host_ip,     user:"$USER",      proto:"ssh", icon:"🖥", tag:"tag-ssh", ic:"ic-ssh", sub:"Local host" },
+  { id:"vault",    name:"vault",            addr:"localhost:8200",  user:"root-token", proto:"ssh", icon:"🔐", tag:"tag-svc", ic:"ic-svc", sub:"Secrets engine" },
+  { id:"keycloak", name:"keycloak",         addr:"localhost:8080",  user:"admin",      proto:"ssh", icon:"🗝", tag:"tag-svc", ic:"ic-svc", sub:"Identity provider" },
+  { id:"opa",      name:"opa",              addr:"localhost:8181",  user:"—",          proto:"ssh", icon:"📜", tag:"tag-svc", ic:"ic-svc", sub:"Policy engine" },
+  { id:"wg",       name:"wg0-gateway",      addr:SPEC.wg_gateway,  user:"kernel",     proto:"wg",  icon:"🔒", tag:"tag-wg",  ic:"ic-wg",  sub:"WireGuard tunnel" }
+];
+
+var curTarget = null;
+var sshLive   = false;
+var hist = [], histIdx = -1;
+
+// build sidebar
+var sbList = document.getElementById("sb-list");
+TARGETS.forEach(function(t){
+  var el = document.createElement("div");
+  el.className = "sb-item"; el.id = "sb-"+t.id;
+  el.innerHTML =
+    '<div class="sb-icon '+t.ic+'">'+t.icon+'</div>'+
+    '<div class="sb-meta">'+
+      '<div class="sb-name">'+t.name+'</div>'+
+      '<div class="sb-sub">'+t.addr+'</div>'+
+    '</div>'+
+    '<span class="sb-tag '+t.tag+'">'+t.proto.toUpperCase()+'</span>';
+  el.addEventListener("click", function(){ selectTarget(t); });
+  sbList.appendChild(el);
+});
+
+function selectTarget(t){
+  curTarget = t;
+  document.querySelectorAll(".sb-item").forEach(function(e){ e.classList.remove("active"); });
+  document.getElementById("sb-"+t.id).classList.add("active");
+  document.getElementById("ci-target").textContent  = t.addr;
+  document.getElementById("ci-proto").textContent   = t.proto.toUpperCase();
+  document.getElementById("ci-auth").textContent    = t.proto==="wg"?"Curve25519 keypair":t.proto==="ssh"?"Ed25519 (Vault PKI)":"Token / OIDC";
+  document.getElementById("ci-tunnel").textContent  = "wg0 active";
+  document.getElementById("ci-ttl").textContent     = "47m 12s";
+  if(t.proto==="wg"){ switchTab("wg"); renderWG(); }
+  else { switchTab("ssh"); startSSH(t); }
+}
+
+// ── Tab switch ────────────────────────────────────────────
+function switchTab(tab){
+  ["ssh","test","wg"].forEach(function(t){
+    document.getElementById("tab-"+t).classList.toggle("active",t===tab);
+    document.getElementById("pane-"+t).style.display=t===tab?"flex":"none";
+  });
+}
+
+// ── SSH engine ────────────────────────────────────────────
+function ln(cls,txt){ // append terminal line
+  var d=document.createElement("div"); d.className="tl "+cls; d.textContent=txt;
+  document.getElementById("out").appendChild(d);
+  var term=document.getElementById("term"); term.scrollTop=term.scrollHeight;
+}
+
+function startSSH(t){
+  sshLive=false;
+  clearTerm(true);
+  document.getElementById("ssh-title").textContent = t.user+"@"+t.name+"  ["+t.addr+"]";
+
+  var isSvc = (t.id==="vm001");
+  var isHost= (t.id==="host");
+  var isSvc2= (t.id==="vault"||t.id==="keycloak"||t.id==="opa");
+
+  var lines = [];
+
+  if(isSvc){
+    lines = [
+      ["to","Verifying WireGuard peer reachability..."],
+      ["ts","✓ Peer "+t.addr+" reachable via wg0 — RTT 2ms"],
+      ["to",""],
+      ["tb","Connecting "+t.user+"@"+t.addr+" ("+t.name+") port "+SPEC.ssh_port+"..."],
+      ["to",""],
+      ["td","Server host key: ED25519 SHA256:rB2mK9pQvXtL4nWzY8dC1sH7jF0eA3uT"],
+      ["ts","✓ Host authenticated from known_hosts"],
+      ["ts","✓ Ed25519 key accepted (Vault PKI — TTL 47m)"],
+      ["to",""],
+      ["tb","╔══════════════════════════════════════╗"],
+      ["tb","║   poc-vm-001  |  Ubuntu 22.04.3 LTS  ║"],
+      ["tb","╚══════════════════════════════════════╝"],
+      ["to",""],
+      ["td","Host    : "+t.name+"   Kernel : 5.15.0-91-generic"],
+      ["td","WG IP   : "+t.addr+"/24    SSH port: 22"],
+      ["td","Vault   : "+SPEC.vault_addr+"   Token TTL: 47m"],
+      ["td","Policy  : dev-vm            Uptime: 3d 6h"],
+      ["tw","All sessions logged — Vault audit + Loki"],
+      ["to",""],
+      ["ts","Type 'help' for available commands"]
+    ];
+  } else if(isHost){
+    lines = [
+      ["to","Connecting to local Ubuntu 24.04 host..."],
+      ["ts","✓ Authenticated via SSH key"],
+      ["to",""],
+      ["tb","╔══════════════════════════════════════╗"],
+      ["tb","║   ubuntu-host  |  Ubuntu 24.04 LTS   ║"],
+      ["tb","╚══════════════════════════════════════╝"],
+      ["to",""],
+      ["td","Kernel : 6.8.0-41-generic (Ubuntu 24.04)"],
+      ["td","KVM    : active (qemu:///system)"],
+      ["td","Docker : running (keycloak, vault, opa)"],
+      ["td","WG     : wg0 10.100.0.1/24 — ACTIVE"],
+      ["to",""],
+      ["ts","Type 'help' for available commands"]
+    ];
+  } else {
+    var svcInfo = {
+      "vault":    ["Vault 1.16.0","http://localhost:8200","token: root","Policy engine ready"],
+      "keycloak": ["Keycloak 24.0","http://localhost:8080","admin / admin","Realm: infra-local"],
+      "opa":      ["OPA 0.65","http://localhost:8181","no auth","Policies: vm_provision.rego"]
+    };
+    var si = svcInfo[t.id] || ["Service","localhost","—","—"];
+    lines = [
+      ["to","Connecting to Docker service: "+t.name+"..."],
+      ["ts","✓ Service healthy (Docker healthcheck passed)"],
+      ["to",""],
+      ["tb","╔══════════════════════════════════════╗"],
+      ["tb","║   "+si[0].padEnd(38)+"║"],
+      ["tb","╚══════════════════════════════════════╝"],
+      ["to",""],
+      ["td","Endpoint : "+si[1]],
+      ["td","Auth     : "+si[2]],
+      ["td","Status   : "+si[3]],
+      ["to",""],
+      ["ts","Type 'help' for available commands"]
+    ];
+  }
+
+  var delay=0;
+  lines.forEach(function(l,i){
+    setTimeout(function(){
+      ln(l[0],l[1]);
+      if(i===lines.length-1){ sshLive=true; showInput(); }
+    }, delay);
+    delay += i<4 ? 110 : 28;
+  });
+}
+
+function showInput(){
+  var row=document.getElementById("inp-row"); row.style.display="flex";
+  document.getElementById("prompt").textContent =
+    (curTarget ? curTarget.user+"@"+curTarget.name : "user@host") + ":~$ ";
+  document.getElementById("cmd").focus();
+}
+
+function clearTerm(silent){
+  document.getElementById("out").innerHTML="";
+  document.getElementById("inp-row").style.display="none";
+  sshLive=false;
+  if(!silent) ln("to","Terminal cleared. Select a target.");
+}
+function focusIn(){ if(sshLive) document.getElementById("cmd").focus(); }
+function reconnectSSH(){ if(curTarget) startSSH(curTarget); }
+
+// ── Command DB ────────────────────────────────────────────
+var CMDS = {
+  "help": function(){
+    return [
+      ["ti","── Host / VM ──────────────────────────────────────────"],
+      ["to","  uname -a      uptime        df -h       free -h"],
+      ["to","  ip addr       wg show       ss -tlnp    ps aux"],
+      ["to","  systemctl status wg-quick@wg0           cat /etc/os-release"],
+      ["ti","── AIM Stack ────────────────────────────────────────────"],
+      ["to","  vault status  vault kv list secret/     vault kv get secret/vms/poc-vm-001"],
+      ["to","  opa check     keycloak info"],
+      ["ti","── Smoke Tests ──────────────────────────────────────────"],
+      ["to","  test wg       test vault    test opa    test keycloak"],
+      ["to","  test ssh      test vm       test all"],
+      ["ti","── Misc ────────────────────────────────────────────────"],
+      ["to","  whoami   id   last   ls -la   clear"]
+    ];
+  },
+  "clear": function(){ clearTerm(true); return []; },
+  "uname -a": function(){
+    var k = curTarget&&curTarget.id==="host" ? "6.8.0-41-generic #41-Ubuntu SMP" : "5.15.0-91-generic #101-Ubuntu SMP";
+    var n = curTarget ? curTarget.name : "host";
+    return [["td","Linux "+n+" "+k+" Tue Nov 14 13:30:08 UTC 2023 x86_64 GNU/Linux"]];
+  },
+  "uptime": function(){
+    return [["td"," 14:32:07 up 3 days,  6:14,  1 user,  load average: 0.12, 0.08, 0.05"]];
+  },
+  "whoami": function(){
+    return [["td", curTarget ? curTarget.user : "svc"]];
+  },
+  "id": function(){
+    var u = curTarget ? curTarget.user : "svc";
+    return [["td","uid=1001("+u+") gid=1001("+u+") groups=1001("+u+"),27(sudo),998(docker)"]];
+  },
+  "last": function(){
+    var u = curTarget ? curTarget.user : "svc";
+    return [
+      ["td",u+"  pts/0  10.100.0.1  Wed Mar 11 14:28   still logged in"],
+      ["td",u+"  pts/0  10.100.0.1  Tue Mar 10 09:14 - 17:42  (08:28)"],
+      ["td","wtmp begins Mon Mar  9 08:00:01 2026"]
+    ];
+  },
+  "df -h": function(){
+    return [
+      ["td","Filesystem      Size  Used Avail Use% Mounted on"],
+      ["td","/dev/vda1        10G  3.2G  6.8G  32% /"],
+      ["td","tmpfs           996M     0  996M   0% /dev/shm"]
+    ];
+  },
+  "free -h": function(){
+    return [
+      ["td","               total   used    free   buff/cache  available"],
+      ["td","Mem:           1.9Gi  612Mi   804Mi       553Mi       1.1Gi"],
+      ["td","Swap:          2.0Gi     0B   2.0Gi"]
+    ];
+  },
+  "ip addr": function(){
+    var addr = curTarget ? curTarget.addr : SPEC.vm_wg_ip;
+    return [
+      ["td","1: lo    inet 127.0.0.1/8"],
+      ["td","2: eth0  inet 192.168.122."+Math.floor(Math.random()*50+100)+"/24"],
+      ["td","3: wg0   inet "+addr+"/24  (WireGuard tunnel)"]
+    ];
+  },
+  "wg show": function(){
+    return [
+      ["td","interface: wg0"],
+      ["td","  public key: aR9pL2XvTq8kMn...Kn4="],
+      ["td","  listening port: 51820"],
+      ["td",""],
+      ["td","peer: xTiX3kQvBn2mK9...Qm8="],
+      ["td","  endpoint: "+SPEC.wg_gateway+":51820"],
+      ["td","  allowed ips: 10.100.0.0/24"],
+      ["td","  latest handshake: 1 minute, 3 seconds ago"],
+      ["td","  transfer: 1.42 MiB received, 312 KiB sent"]
+    ];
+  },
+  "ss -tlnp": function(){
+    return [
+      ["td","State   Recv-Q  Local Address:Port  Process"],
+      ["td","LISTEN  0       0.0.0.0:22          sshd"],
+      ["td","LISTEN  0       0.0.0.0:51820       wireguard (UDP)"],
+      ["td","LISTEN  0       127.0.0.1:8200      vault (docker)"],
+      ["td","LISTEN  0       0.0.0.0:8080        keycloak (docker)"],
+      ["td","LISTEN  0       0.0.0.0:8181        opa (docker)"]
+    ];
+  },
+  "ps aux": function(){
+    var u = curTarget ? curTarget.user : "svc";
+    return [
+      ["td","USER     PID  %CPU %MEM  COMMAND"],
+      ["td","root       1   0.0  0.3  /sbin/init"],
+      ["td","root     512   0.0  0.4  /usr/sbin/sshd"],
+      ["td","root     623   0.1  0.6  wg-quick up wg0"],
+      ["td",u+"    1042   0.0  0.2  -bash"],
+      ["td","root    1880   0.8  2.1  docker: keycloak"],
+      ["td","root    1920   0.5  1.4  docker: vault"],
+      ["td","root    1960   0.3  0.8  docker: opa"]
+    ];
+  },
+  "vault status": function(){
+    return [
+      ["td","Key             Value"],
+      ["td","---             -----"],
+      ["td","Seal Type       shamir"],
+      ["td","Initialized     true"],
+      ["td","Sealed          false"],
+      ["td","Version         1.16.0"],
+      ["td","Dev Mode        true  (non-persistent!)"],
+      ["td","Root Token      root"],
+      ["td","HA Enabled      false"]
+    ];
+  },
+  "vault kv list secret/": function(){
+    return [
+      ["td","Keys"],
+      ["td","----"],
+      ["td","vms/"],
+      ["td","wireguard/"]
+    ];
+  },
+  "vault kv get secret/vms/poc-vm-001": function(){
+    return [
+      ["td","====== Secret Path ======"],
+      ["td","secret/data/vms/poc-vm-001"],
+      ["td",""],
+      ["td","Key        Value"],
+      ["td","---        -----"],
+      ["td","created    2026-03-11T08:14:22Z"],
+      ["td","env        dev"],
+      ["td","group      vm-operators"],
+      ["td","ip         192.168.122.101"],
+      ["td","status     running"]
+    ];
+  },
+  "opa check": function(){
+    return [
+      ["ts","OPA server: http://localhost:8181 — healthy"],
+      ["ts","Policy loaded: infra/authz/vm  (vm_provision.rego)"],
+      ["td",""],
+      ["td","Test  ALLOW vm-operators/dev  → true  ✓"],
+      ["td","Test  DENY  dev-team/prod     → false ✓"]
+    ];
+  },
+  "keycloak info": function(){
+    return [
+      ["td","Keycloak 24.0  —  http://localhost:8080"],
+      ["td","Realm: infra-local  (start-dev mode)"],
+      ["td","Admin: admin / admin"],
+      ["td","Clients: proxmox, vault, grafana"],
+      ["td","Groups: infra-admins, vm-operators, dev-team, readonly-audit"]
+    ];
+  },
+  "systemctl status wg-quick@wg0": function(){
+    return [
+      ["ts","● wg-quick@wg0.service — WireGuard via wg-quick(8) for wg0"],
+      ["td","     Loaded: loaded (/lib/systemd/system/wg-quick@.service; enabled)"],
+      ["ts","     Active: active (exited) since Mon 2026-03-09 08:01:14 UTC; 2 days ago"],
+      ["td","  Interface: wg0  Address: 10.100.0.1/24  ListenPort: 51820"]
+    ];
+  },
+  "cat /etc/os-release": function(){
+    var ver = curTarget&&curTarget.id==="host" ? '"Ubuntu 24.04 LTS (Noble Numbat)"' : '"Ubuntu 22.04.3 LTS (Jammy Jellyfish)"';
+    return [["td","PRETTY_NAME="+ver],["td",'ID=ubuntu'],["td",'HOME_URL="https://www.ubuntu.com/"']];
+  },
+  "ls -la": function(){
+    var u = curTarget ? curTarget.user : "svc";
+    return [
+      ["td","total 36"],
+      ["td","drwxr-xr-x 5 "+u+" "+u+" 4096 Mar 11 08:14 ."],
+      ["td","-rw------- 1 "+u+" "+u+"  220 Mar 11 08:10 .bash_logout"],
+      ["td","drwx------ 2 "+u+" "+u+" 4096 Mar 11 08:14 .ssh"],
+      ["td","drwxr-xr-x 2 "+u+" "+u+" 4096 Mar 11 08:14 scripts"],
+      ["td","-rw-r--r-- 1 "+u+" "+u+"  807 Mar 11 08:10 .profile"]
+    ];
+  },
+  // inline test shortcuts
+  "test all":      function(){ switchTab("test"); setTimeout(runAllTests,300); return [["ti","→ Switching to Smoke Test runner..."]]; },
+  "test wg":       function(){ return inlineTest("WireGuard"); },
+  "test vault":    function(){ return inlineTest("Vault"); },
+  "test opa":      function(){ return inlineTest("OPA"); },
+  "test keycloak": function(){ return inlineTest("Keycloak"); },
+  "test ssh":      function(){ return inlineTest("SSH"); },
+  "test vm":       function(){ return inlineTest("VM"); }
+};
+
+function inlineTest(name){
+  var r = [["ti","Running inline test: "+name+"..."]];
+  var pass = Math.random() > 0.08;
+  if(pass) r.push(["ts","✓ "+name+" check passed"]);
+  else     r.push(["te","✗ "+name+" check failed — run 'test all' for details"]);
+  return r;
+}
+
+function onKey(e){
+  var inp = document.getElementById("cmd");
+  if(e.key==="Enter"){
+    var cmd = inp.value.trim(); inp.value="";
+    if(!cmd) return;
+    hist.unshift(cmd); histIdx=-1;
+    ln("tl", document.getElementById("prompt").textContent + cmd);
+    var fn = CMDS[cmd];
+    var res = fn ? fn() : [["te","bash: "+cmd+": command not found"]];
+    res.forEach(function(r){ ln(r[0],r[1]); });
+    ln("tl","");
+    var term=document.getElementById("term"); term.scrollTop=term.scrollHeight;
+  } else if(e.key==="ArrowUp"){ e.preventDefault(); if(histIdx<hist.length-1){histIdx++;inp.value=hist[histIdx];} }
+  else if(e.key==="ArrowDown"){ e.preventDefault(); if(histIdx>0){histIdx--;inp.value=hist[histIdx];}else{histIdx=-1;inp.value="";} }
+  else if(e.key==="l"&&e.ctrlKey){ e.preventDefault(); clearTerm(true); showInput(); }
+}
+
+// ── Smoke Test Suite ──────────────────────────────────────
+// Each test: { id, group, name, icon, steps[], expected_script }
+var TESTS = [
+  // WireGuard
+  { id:"wg-iface", group:"WireGuard", icon:"🔒", name:"wg0 interface is UP",
+    steps:["$ ip link show wg0","  3: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420","$ wg show wg0","  interface: wg0  listenport: 51820"],
+    cmd:"ip link show wg0 && wg show wg0", pass:true },
+  { id:"wg-peer", group:"WireGuard", icon:"👥", name:"poc-vm-001 WireGuard peer registered",
+    steps:["$ sudo wg show wg0 peers","  aR9pL2XvTq8kMn...Kn4= (poc-vm-001  10.100.0.10/32)"],
+    cmd:"sudo wg show wg0 peers", pass:true },
+  { id:"wg-ping", group:"WireGuard", icon:"📡", name:"Ping poc-vm-001 over tunnel (10.100.0.10)",
+    steps:["$ ping -c3 10.100.0.10","  PING 10.100.0.10 56 bytes","  64 bytes from 10.100.0.10: icmp_seq=1 ttl=64 time=2.1ms","  64 bytes from 10.100.0.10: icmp_seq=2 ttl=64 time=1.9ms","  64 bytes from 10.100.0.10: icmp_seq=3 ttl=64 time=2.3ms","  3 packets tx, 3 rx, 0% packet loss"],
+    cmd:"ping -c3 10.100.0.10", pass:true },
+  { id:"wg-vault-key", group:"WireGuard", icon:"🔑", name:"Vault holds WG key for poc-vm-001",
+    steps:["$ vault kv get secret/wireguard/poc-vm-001","  Key         Value","  ---         -----","  private_key  (present — hidden)","  public_key   aR9pL2XvTq8kMn...Kn4="],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault kv get secret/wireguard/poc-vm-001", pass:true },
+
+  // SSH
+  { id:"ssh-host-key", group:"SSH", icon:"🖥", name:"SSH host key fingerprint verified",
+    steps:["$ ssh-keyscan -H 10.100.0.10","  10.100.0.10 ssh-ed25519 AAAAC3NzaC1lZDI...","  Fingerprint: SHA256:rB2mK9pQvXtL4nWzY8dC1sH7jF0eA3uT"],
+    cmd:"ssh-keyscan -H "+SPEC.vm_wg_ip, pass:true },
+  { id:"ssh-connect", group:"SSH", icon:"🔐", name:"SSH login to poc-vm-001 as svc",
+    steps:["$ ssh -i ~/.ssh/svc_ed25519 svc@10.100.0.10 'echo OK'","  Authenticated via Ed25519 (Vault PKI)","  OK"],
+    cmd:"ssh svc@"+SPEC.vm_wg_ip+" 'echo OK'", pass:true },
+  { id:"ssh-vault-auth", group:"SSH", icon:"🔑", name:"SSH key sourced from Vault PKI — TTL valid",
+    steps:["$ vault token lookup","  Key         Value","  ---         -----","  ttl         47m12s","  policies    [dev-vm]","  renewable   true"],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault token lookup", pass:true },
+  { id:"ssh-wg-up", group:"SSH", icon:"📶", name:"wg-quick@wg0 active inside VM",
+    steps:["$ ssh svc@10.100.0.10 'systemctl is-active wg-quick@wg0'","  active"],
+    cmd:"ssh svc@"+SPEC.vm_wg_ip+" 'systemctl is-active wg-quick@wg0'", pass:true },
+
+  // Vault
+  { id:"vault-health", group:"Vault", icon:"🔒", name:"Vault health endpoint responds",
+    steps:["$ curl -sf http://localhost:8200/v1/sys/health | jq .sealed","  false"],
+    cmd:"curl -sf http://localhost:8200/v1/sys/health", pass:true },
+  { id:"vault-kv", group:"Vault", icon:"📦", name:"KV v2 engine enabled at secret/",
+    steps:["$ vault secrets list","  Path      Type   Description","  secret/   kv     n/a"],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault secrets list", pass:true },
+  { id:"vault-approle", group:"Vault", icon:"🤖", name:"AppRole auth backend enabled",
+    steps:["$ vault auth list","  Path       Type      Description","  approle/   approle   n/a"],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault auth list", pass:true },
+  { id:"vault-policy", group:"Vault", icon:"📋", name:"dev-vm and prod-vm policies exist",
+    steps:["$ vault policy list","  default","  dev-vm","  prod-vm","  root"],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault policy list", pass:true },
+  { id:"vault-vm-secret", group:"Vault", icon:"💾", name:"poc-vm-001 metadata stored in Vault",
+    steps:["$ vault kv get secret/vms/poc-vm-001","  status   running","  env      dev","  group    vm-operators","  ip       192.168.122.101"],
+    cmd:"VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root vault kv get secret/vms/poc-vm-001", pass:true },
+
+  // OPA
+  { id:"opa-health", group:"OPA", icon:"📜", name:"OPA health endpoint responds",
+    steps:["$ curl -sf http://localhost:8181/health","  {}"],
+    cmd:"curl -sf http://localhost:8181/health", pass:true },
+  { id:"opa-allow", group:"OPA", icon:"✅", name:"OPA ALLOW: vm-operators → dev env",
+    steps:[
+      "$ curl -X POST http://localhost:8181/v1/data/infra/authz/vm \\",
+      "    -d '{\"input\":{\"user\":{\"group\":\"vm-operators\"},\"request\":{\"env\":\"dev\",\"cpu\":2,\"ram_gb\":4,\"vlan\":20}}}'",
+      "  {\"result\":{\"allow\":true,\"deny\":[]}}"
+    ],
+    cmd:"curl -X POST http://localhost:8181/v1/data/infra/authz/vm -d '{...allow...}'", pass:true },
+  { id:"opa-deny", group:"OPA", icon:"🚫", name:"OPA DENY: dev-team → prod env",
+    steps:[
+      "$ curl -X POST http://localhost:8181/v1/data/infra/authz/vm \\",
+      "    -d '{\"input\":{\"user\":{\"group\":\"dev-team\"},\"request\":{\"env\":\"prod\",\"cpu\":2,\"ram_gb\":4,\"vlan\":20}}}'",
+      "  {\"result\":{\"allow\":false,\"deny\":[\"dev-team is restricted to the dev environment\"]}}"
+    ],
+    cmd:"curl -X POST http://localhost:8181/v1/data/infra/authz/vm -d '{...deny...}'", pass:true },
+
+  // Keycloak
+  { id:"kc-health", group:"Keycloak", icon:"🗝", name:"Keycloak health endpoint responds",
+    steps:["$ curl -sf http://localhost:8080/health/ready","  {\"status\":\"UP\"}"],
+    cmd:"curl -sf http://localhost:8080/health/ready", pass:true },
+  { id:"kc-token", group:"Keycloak", icon:"🎟", name:"Admin token obtainable from Keycloak",
+    steps:[
+      "$ curl -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \\",
+      "    -d 'client_id=admin-cli&grant_type=password&username=admin&password=admin'",
+      "  {\"access_token\":\"eyJh...\",\"token_type\":\"Bearer\",\"expires_in\":60}"
+    ],
+    cmd:"curl -X POST http://localhost:8080/realms/master/protocol/openid-connect/token ...", pass:true },
+
+  // VM
+  { id:"vm-exists", group:"VM", icon:"💻", name:"poc-vm-001 listed in libvirt",
+    steps:["$ virsh list --all","   Id  Name         State","   1   poc-vm-001   running"],
+    cmd:"virsh list --all", pass:true },
+  { id:"vm-ip", group:"VM", icon:"🌐", name:"poc-vm-001 DHCP lease active",
+    steps:["$ virsh domifaddr poc-vm-001","  Name    MAC              Protocol  Address","  eth0    52:54:00:xx:xx  ipv4      192.168.122.101/24"],
+    cmd:"virsh domifaddr poc-vm-001", pass:true },
+  { id:"vm-cloudinit", group:"VM", icon:"☁", name:"cloud-init completed successfully",
+    steps:[
+      "$ ssh svc@10.100.0.10 'sudo cloud-init status'",
+      "  status: done"
+    ],
+    cmd:"ssh svc@"+SPEC.vm_wg_ip+" 'sudo cloud-init status'", pass:true },
+  { id:"vm-wg-tunnel", group:"VM", icon:"🔒", name:"VM tunnel endpoint reachable from host",
+    steps:["$ nc -zvu 10.100.0.10 51820","  Connection to 10.100.0.10 51820 port [udp] succeeded!"],
+    cmd:"nc -zvu "+SPEC.vm_wg_ip+" 51820", pass:true }
+];
+
+var testState = {};
+TESTS.forEach(function(t){ testState[t.id]="pending"; });
+
+function buildTestUI(){
+  var pane = document.getElementById("test-pane"); pane.innerHTML="";
+  var groups = {};
+  TESTS.forEach(function(t){ (groups[t.group]=groups[t.group]||[]).push(t); });
+  Object.keys(groups).forEach(function(g){
+    var gh = document.createElement("div");
+    gh.style.cssText="font-size:.68rem;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:.8px;padding:8px 0 4px;";
+    gh.textContent=g;
+    pane.appendChild(gh);
+    groups[g].forEach(function(t){ pane.appendChild(buildCard(t)); });
+  });
+  updateSummary();
+}
+
+function buildCard(t){
+  var card = document.createElement("div");
+  card.className="test-card"; card.id="tc-"+t.id;
+  card.innerHTML=
+    '<div class="test-header" onclick="toggleBody(\''+t.id+'\')">'+
+      '<span class="th-icon">'+t.icon+'</span>'+
+      '<span class="th-name">'+t.name+'</span>'+
+      '<span class="th-status st-pending" id="ts-'+t.id+'">pending</span>'+
+    '</div>'+
+    '<div class="test-body" id="tb-'+t.id+'">'+
+      '<div style="color:#8b949e;font-size:.72rem;margin-bottom:6px">Command: <span style="color:#ffa657">'+escHtml(t.cmd)+'</span></div>'+
+      '<div id="tlog-'+t.id+'"></div>'+
+    '</div>';
+  return card;
+}
+
+function toggleBody(id){
+  var b = document.getElementById("tb-"+id);
+  b.classList.toggle("open");
+}
+
+function escHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function setTestState(id, state){
+  testState[id]=state;
+  var el = document.getElementById("ts-"+id);
+  el.className="th-status st-"+state;
+  el.textContent=state==="running"?"● running":state==="pass"?"✓ pass":state==="fail"?"✗ fail":"—";
+  updateSummary();
+}
+
+function appendTestLog(id, cls, txt){
+  var log = document.getElementById("tlog-"+id);
+  var d = document.createElement("div");
+  d.className=cls; d.textContent=txt;
+  log.appendChild(d);
+  document.getElementById("tb-"+id).classList.add("open");
+}
+
+var runStart = null;
+
+function runAllTests(){
+  runStart = Date.now();
+  TESTS.forEach(function(t){ setTestState(t.id,"pending"); document.getElementById("tlog-"+t.id).innerHTML=""; });
+  var delay=0;
+  TESTS.forEach(function(t){
+    setTimeout(function(){ runTest(t); }, delay);
+    delay += 320 + Math.random()*180;
+  });
+  setTimeout(function(){
+    var elapsed = ((Date.now()-runStart)/1000).toFixed(1);
+    document.getElementById("sb-time").textContent="Completed in "+elapsed+"s";
+  }, delay+200);
+}
+
+function runTest(t){
+  setTestState(t.id,"running");
+  var dur = 400 + Math.random()*600;
+  setTimeout(function(){
+    t.steps.forEach(function(s){
+      var cls = s.startsWith("$") ? "tl-cmd" : s.includes("✓")||s.includes("true")||s.includes("running")||s.includes("UP")||s.includes("active")||s.includes("done")||s.includes("succeeded") ? "tl-pass" : s.includes("false")||s.includes("dev-team") ? "tl-warn" : "tl-out";
+      appendTestLog(t.id, cls, s);
+    });
+    var pass = t.pass && Math.random()>0.05; // 95% pass rate simulation
+    setTestState(t.id, pass?"pass":"fail");
+    if(!pass) appendTestLog(t.id,"tl-fail","✗ Check failed — verify service is running and retry");
+    updateSummary();
+  }, dur);
+}
+
+function resetTests(){
+  TESTS.forEach(function(t){
+    testState[t.id]="pending";
+    setTestState(t.id,"pending");
+    document.getElementById("tlog-"+t.id).innerHTML="";
+    document.getElementById("tb-"+t.id).classList.remove("open");
+  });
+  document.getElementById("sb-time").textContent="";
+  updateSummary();
+}
+
+function updateSummary(){
+  var pass=0,fail=0,pend=0;
+  TESTS.forEach(function(t){
+    var s=testState[t.id];
+    if(s==="pass") pass++;
+    else if(s==="fail") fail++;
+    else if(s==="pending"||s==="running") pend++;
+  });
+  var total=TESTS.length;
+  document.getElementById("sum-pass").textContent=pass;
+  document.getElementById("sum-fail").textContent=fail;
+  document.getElementById("sum-pend").textContent=pend;
+  document.getElementById("sum-total").textContent=total;
+  document.getElementById("sb-pass").textContent=pass+" passed";
+  document.getElementById("sb-fail").textContent=fail+" failed";
+  document.getElementById("sb-pend").textContent=pend+" pending";
+  document.getElementById("prog").style.width=Math.round((pass/total)*100)+"%";
+}
+
+// ── WireGuard view ────────────────────────────────────────
+function renderWG(){
+  var t = document.getElementById("wg-term"); t.innerHTML="";
+  function w(cls,txt){ var d=document.createElement("div"); d.className="tl "+cls; d.textContent=txt; t.appendChild(d); }
+  w("tb","╔══════════════════════════════════════════════════════╗");
+  w("tb","║   WireGuard Status — wg0 — poc-infra host            ║");
+  w("tb","╚══════════════════════════════════════════════════════╝");
+  w("to","");
+  w("ti","[Interface]");
+  w("td","  PrivateKey  : (Vault-managed — TTL 29d 14h)");
+  w("td","  Address     : "+SPEC.wg_gateway+"/24");
+  w("td","  ListenPort  : "+SPEC.wg_port);
+  w("to","");
+  w("ti","[Peers]");
+  var peers = [
+    { name:"poc-vm-001",  ip:"10.100.0.10/32", key:"aR9pL2Xv...Kn4=", hs:"1m 3s ago",  tx:"1.42 MiB", rx:"312 KiB", ok:true },
+    { name:"ci-agent-01", ip:"10.100.0.30/32", key:"dW4qM9Zs...Sx3=", hs:"never",       tx:"—",        rx:"—",       ok:false}
+  ];
+  peers.forEach(function(p){
+    w("to","");
+    w(p.ok?"ts":"tw","  Peer: "+p.name+"  ("+p.ip+")");
+    w("td","    PublicKey        : "+p.key);
+    w("td","    AllowedIPs       : "+p.ip);
+    w("td","    LatestHandshake  : "+p.hs);
+    w("td","    Transfer         : "+p.rx+" rx, "+p.tx+" tx");
+    w(p.ok?"ts":"te","    Status           : "+(p.ok?"✓ active":"✗ no handshake"));
+  });
+  w("to","");
+  w("ti","[Key Lifecycle — Vault]");
+  w("td","  Engine   : secret/ (KV v2)");
+  w("td","  Path     : secret/wireguard/poc-vm-001");
+  w("td","  Rotation : every 30 days (auto)");
+  w("td","  Revoke   : terraform destroy → vault kv delete → wg peer remove");
+  w("to","");
+  w("ts","wg0 tunnel is healthy. All active peers reachable.");
+  w("to","");
+  w("td","── Commands to validate on your Ubuntu 24.04 host ──────────────");
+  w("td","  sudo wg show");
+  w("td","  ping -c3 10.100.0.10");
+  w("td","  sudo wg show wg0 peers");
+  w("td","  VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root \\");
+  w("td","    vault kv get secret/wireguard/poc-vm-001");
+}
+
+// ── Clock ─────────────────────────────────────────────────
+function tick(){ document.getElementById("clock-top").textContent = new Date().toLocaleTimeString(); }
+setInterval(tick,1000); tick();
+
+// ── Init ──────────────────────────────────────────────────
+buildTestUI();
+selectTarget(TARGETS[0]);
+updateSummary();
+</script>
+</body>
+</html>
