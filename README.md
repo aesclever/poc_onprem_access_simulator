@@ -3,7 +3,7 @@ Similate RDP/SSH access to the proof of concept on-premise infrastructure.
 
 **THIS IS A SIMULATOR**
 
-→ Click Emmulate client RDP/SSH connections to [poc_onprem_infra_client](https://aesclever.github.io/poc_onprem_access_simulator/poc_rdp_ssh_sim.html)
+→ Click Emmulate client RDP/SSH connections to [poc_onprem_infra_client](https://aesclever.github.io/poc_onprem_access_simulator/sim/poc_rdp_ssh_sim.html)
 
 → Click onprem infrastructure server [poc_onprem_infra_server](https://aesclever.github.io/poc_onprem_infra/poc_generator.html)
 
