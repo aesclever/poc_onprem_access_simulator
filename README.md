@@ -7,6 +7,7 @@ Similate RDP/SSH access to the proof of concept on-premise infrastructure.
 
 → Click onprem infrastructure server [poc_onprem_infra_server](https://aesclever.github.io/poc_onprem_infra/poc_generator.html)
 
+→ Click to test RDP/SSH via WireGuard Tunnel [access_tunnel](https://aesclever.github.io/poc_onprem_access_simulator/test/rdp_ssh_wireguard_test.html)
 
 ## SSH Terminal
 Click any Linux host in the sidebar (node-01, poc-vm-001, vault-server) to open an animated SSH session through the WireGuard tunnel. The terminal is fully interactive — type commands and press Enter:
